@@ -1,0 +1,57 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper]{geometry}
+
+\title{Kaggles stroke dataset}
+\author{Ciaran Welsh}
+
+\begin{document}
+
+    \maketitle
+
+    \section{Introduction}
+    I have trained a feed forward neural network to classify people into stroke victims or not-stroke victims
+    based on their age, their average glucose level, hypertension, heart disease, gender, bmi, marital status and
+    work type. However, I am not convinced that all of these variables are informative for classifying stroke victims.
+    I have already excluded residence as a factor involved in stroke incidence based on the scatter plot (data/Plots/scatter_matrix/raw_Residence_type)
+    but I suspect marital status should be excluded as well. Given more time I would systematically drop each variable
+    in turn and measure its impact on model performance.
+
+    \section{Preprocessing}
+    The biggest problem with this dataset is that the number of stroke samples was much smaller than the number
+    of non-stroke samples (98\% vs 2\%). To deal with this problem, I chose to keep things simple and under sample the non-stroke
+    data, ensuring the number of stroke and non-stroke samples were equal in both the train and validation data. This turned
+    out to be a naive method because it doesn't factor in the impact that age has on stroke incidence. When training
+    with this naive method, the model validation score was very unstable between runs and dependent on the
+    age distribution of the under sampled. This became evident after stratifying the under-sampling such that the age distribution
+    within the stroke and non-stroke in both the train and validation data were the same.
+
+    Other ways I cleaned this dataset include:
+    \begin{enumerate}
+        \item Remove smoking status category. It has too many missing values.
+        \item Remove the residence category: exploratory data analysis seems to suggest its not predictor of stroke incidence.
+        \item Discard young data. There are very few people under 30 in this dataset that have had a stroke. Therefore these were removed from the analysis.
+        \item Drop the other gender. There are very few `Other' values and none who have had strokes.
+        \item Impute the bmi column using the median, since only around 3\% of data were missing this is a reasonable thing to do instead of deleting the sample.
+        \item Scale continuous data between 0 and 1 so they exist on a similar scale for fitting
+        \item One hot encode categorical variables
+        \item convert boolean variables to 1's and 0's
+        \item remove any remaining samples with nan values.
+    \end{enumerate}
+
+    Note that model performance may still be improved by modifying the preprocessing strategy. Of note there is a
+    package called Imbalanced-learn that would be of interest.
+
+    \subsection{Model architecture}
+    A simple feedforward network was implemented using the tensorflow interface to keras. Dropout layers were used
+    after each dense layer for regularisation and the relu activation funciton was used. The output layer has a single
+    neural with a sigmoid activation function and the model was trained by minimizing the binary crossentropy objective
+    function using the ADAM optimizer. An early stopping callback was used to prevent overfitting by stopping training
+    when the validation accuracy begins to decline.
+
+
+    Time constrains
+    - could not tune hyperparameters well
+
+
+
+\end{document}
