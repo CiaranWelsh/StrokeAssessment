@@ -139,7 +139,7 @@ if __name__ == '__main__':
     BOOTSTRAP_NETWORK = True
 
     # number of times to bootstrap
-    NBOOT = 10
+    NBOOT = 100
 
     # some hyperparameters
     val_split = 0.2
@@ -185,8 +185,8 @@ if __name__ == '__main__':
                 use_early_stopping=use_early_stopping
             )
             models.append(model)
-            histories.append(history)
-        hist = pd.concat(histories)
+            histories.append(history.iloc[[-1]])
+        hist = pd.concat(histories).reset_index()
         # save to file
         hist.to_csv(stroke_assessment.BOOTSTRAP_HISTORY_FILE)
 
