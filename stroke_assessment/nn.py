@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score, roc_curve
 
 import stroke_assessment
 from stroke_assessment.preprocess import PreprocessData, UnderSample
@@ -72,17 +73,25 @@ def network(train_X: pd.DataFrame, train_y: pd.DataFrame, val_X: pd.DataFrame, v
 
     """
     model = tf.keras.Sequential([
-        tf.keras.layers.Dense(64, activation='relu', input_shape=(train_X.shape[1],)),
+        tf.keras.layers.Dense(128, activation='tanh', input_shape=(train_X.shape[1],)),
         tf.keras.layers.Dropout(dropout_rate),
-        tf.keras.layers.Dense(32, activation='relu'),
+        tf.keras.layers.Dense(64, activation='tanh'),
         tf.keras.layers.Dropout(dropout_rate),
-        tf.keras.layers.Dense(16, activation='relu'),
+        tf.keras.layers.Dense(32, activation='tanh'),
+        tf.keras.layers.Dropout(dropout_rate),
+        tf.keras.layers.Dense(16, activation='tanh'),
         tf.keras.layers.Dropout(dropout_rate),
         tf.keras.layers.Dense(1, activation='sigmoid'),
     ])
+
+    def auc(y_true, y_pred):
+        auc = tf.metrics.auc(y_true, y_pred)[1]
+        tf.keras.backend.get_session().run(tf.local_variables_initializer())
+        return auc
+
     model.compile(
         loss='binary_crossentropy',
-        metrics=['acc'],
+        metrics=['acc', auc],
         optimizer='adam'
     )
 
@@ -91,7 +100,7 @@ def network(train_X: pd.DataFrame, train_y: pd.DataFrame, val_X: pd.DataFrame, v
         epochs=epochs,
         callbacks=[
             tf.keras.callbacks.EarlyStopping(
-                monitor='val_loss', patience=25, min_delta=5,
+                monitor='val_loss', patience=50, min_delta=5,
             )
         ] if use_early_stopping else []
     )
@@ -111,12 +120,15 @@ def plot_history(history, savefig=False):
     """
     history['epoch'] = range(history.shape[0])
     fig = plt.figure()
-    plt.subplot(1, 2, 1)
+    plt.subplot(1, 3, 1)
     sns.lineplot(x='epoch', y='loss', data=history, label='loss')
     sns.lineplot(x='epoch', y='val_loss', data=history, label='val_loss')
-    plt.subplot(1, 2, 2)
+    plt.subplot(1, 3, 2)
     sns.lineplot(x='epoch', y='acc', data=history, label='acc')
     sns.lineplot(x='epoch', y='val_acc', data=history, label='val_acc')
+    plt.subplot(1, 3, 3)
+    sns.lineplot(x='epoch', y='auc', data=history, label='auc')
+    sns.lineplot(x='epoch', y='val_auc', data=history, label='val_auc')
 
     sns.despine(fig=fig, top=True, right=True)
     if savefig:
@@ -136,14 +148,17 @@ if __name__ == '__main__':
     EVALUATE = True
 
     # resample many times
-    BOOTSTRAP_NETWORK = True
+    BOOTSTRAP_NETWORK = False
 
     # number of times to bootstrap
-    NBOOT = 100
+    NBOOT = 10
+
+    # predict whether samples in test data are stroke victims or not. Note, no test labels for evaluating model performance.
+    PREDICT_TEST_DATA = True
 
     # some hyperparameters
     val_split = 0.2
-    epochs = 1000
+    epochs = 100
     dropout_rate = 0.5
     use_early_stopping = True
 
@@ -193,4 +208,9 @@ if __name__ == '__main__':
         print(hist)
         print(hist.describe())
 
-    # print(pred)
+
+    if PREDICT_TEST_DATA:
+        pred_score = model.predict(test_X)
+        pred_label = [1 if i > 0.5 else 0 for i in pred_score]
+        test_X['pred_score'] = pred_score
+        test_X['pred_label'] = pred_label
